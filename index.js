@@ -8,6 +8,7 @@ var minimist = require('minimist');
 var allContainers = require('docker-allcontainers');
 var statsFactory = require('docker-stats');
 var logFactory = require('docker-loghose');
+var ltsv2json = require('ltsv-stream').ltsv2json
 
 function connect(opts) {
   var stream;
@@ -31,11 +32,18 @@ function start(opts) {
   var statsToken = opts.statstoken || opts.token;
   var out;
   var noRestart = function() {};
+
+  var ltsv = new ltsv2json();
+
   var filter = through.obj(function(obj, enc, cb) {
     addAll(opts.add, obj);
 
     if (obj.line) {
       this.push(logsToken);
+
+      if (opts.ltsv) {
+        obj.ltsv = ltsv.parse(obj.line)
+      }
     } else {
       this.push(statsToken);
     }
@@ -104,6 +112,7 @@ function cli() {
     },
     default: {
       json: false,
+      ltsv: false,
       stats: true,
       add: []
     }
@@ -111,7 +120,7 @@ function cli() {
 
   if (!(argv.token || (argv.logstoken && argv.statstoken))) {
     console.log('Usage: docker-logentries [-l LOGSTOKEN] [-k STATSTOKEN]\n' +
-                '                         [-t TOKEN] [--secure] [--json]\n' +
+                '                         [-t TOKEN] [--secure] [--json] [--ltsv]\n' +
                 '                         [--no-stats] [-a KEY=VALUE]');
     process.exit(1);
   }
